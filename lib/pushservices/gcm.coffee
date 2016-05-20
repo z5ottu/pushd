@@ -1,14 +1,12 @@
 gcm = require 'node-gcm'
 
 class PushServiceGCM
-    tokenFormat: /^[a-zA-Z0-9_-]+$/
     validateToken: (token) ->
-        if PushServiceGCM::tokenFormat.test(token)
-            return token
+        return token
 
     constructor: (conf, @logger, tokenResolver) ->
         conf.concurrency ?= 10
-        @driver = new gcm.Sender(conf.key)
+        @driver = new gcm.Sender(conf.key, conf.options)
         @multicastQueue = {}
 
     push: (subscriber, subOptions, payload) ->
@@ -52,7 +50,10 @@ class PushServiceGCM
                 @handleResult multicastResult, message.subscribers[0]
 
     handleResult: (result, subscriber) ->
-        if result.messageId or result.message_id
+        if result.registration_id?
+            # Remove duplicated subscriber for one device
+            subscriber.delete() if result.registration_id isnt subscriber.info.token
+        else if result.messageId or result.message_id
             # if result.canonicalRegistrationId
                 # TODO: update subscriber token
         else

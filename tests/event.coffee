@@ -69,6 +69,7 @@ describe 'Event', ->
                 unhandledSubscribers = {}
                 for subscriber in subscribers
                     unhandledSubscribers[subscriber.id] = true
+
                 @event.forEachSubscribers (subscriber, subOptions, done) =>
                     unhandledSubscribers[subscriber.id].should.be.true
                     delete unhandledSubscribers[subscriber.id]
@@ -123,6 +124,7 @@ describe 'Event', ->
                 done()
 
         it 'should push to one subscriber', (done) =>
+            PushServiceFake::total = 0
             createSubscriber @redis, (@subscriber) =>
                 @subscriber.addSubscription @event, 0, (added) =>
                     added.should.be.true
@@ -131,6 +133,39 @@ describe 'Event', ->
                         PushServiceFake::total.should.equal 1
                         total.should.equal 1
                         done()
+
+        it 'should push unicast event to subscriber', (done) =>
+            PushServiceFake::total = 0
+
+            createSubscriber @redis, (@subscriber) =>
+                unicastEvent = new Event(@redis, "unicast:#{@subscriber.id}")
+
+                @publisher.publish unicastEvent, {msg: 'test'}, (total) =>
+                    PushServiceFake::total.should.equal 1
+                    total.should.equal 1
+                    unicastEvent.delete ->
+                        done()
+
+    describe 'unicastSubscriber', =>
+        it 'should provide subscriber for unicast event', (doneAll) =>
+            totalSubscribers = 410
+            subscribers = []
+            async.whilst =>
+                subscribers.length < totalSubscribers
+            , (doneCreatingSubscriber) =>
+                createSubscriber @redis, (subscriber) =>
+                    subscribers.push subscriber
+                    event = new Event(@redis, "unicast:#{subscriber.id}")
+                    event.unicastSubscriber().id.should.equal subscriber.id
+                    doneCreatingSubscriber()
+            , =>
+                async.whilst =>
+                    subscribers.length > 0
+                , (doneCleaningSubscribers) =>
+                    subscribers.pop().delete =>
+                        doneCleaningSubscribers()
+                , =>
+                    doneAll()
 
     describe 'stats', =>
         it 'should increment increment total field on new subscription', (done) =>

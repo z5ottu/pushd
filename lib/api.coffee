@@ -7,7 +7,7 @@ filterFields = (params) ->
     fields[key] = val for own key, val of params when key in ['proto', 'token', 'lang', 'badge', 'version', 'category', 'contentAvailable']
     return fields
 
-exports.setupRestApi = (app, createSubscriber, getEventFromId, authorize, testSubscriber, eventPublisher) ->
+exports.setupRestApi = (app, createSubscriber, getEventFromId, authorize, testSubscriber, eventPublisher, checkStatus) ->
     authorize ?= (realm) ->
 
     # subscriber registration
@@ -141,12 +141,13 @@ exports.setupRestApi = (app, createSubscriber, getEventFromId, authorize, testSu
 
     # Unsubscribe a subscriber from an event
     app.delete '/subscriber/:subscriber_id/subscriptions/:event_id', authorize('register'), (req, res) ->
-        req.subscriber.removeSubscription req.event, (deleted) ->
-            if not deleted?
-                logger.error "No subscriber #{req.subscriber.id}"
-            else if not deleted
-                logger.error "Subscriber #{req.subscriber.id} was not subscribed to #{req.event.name}"
-            res.send if deleted then 204 else 404
+        req.subscriber.removeSubscription req.event, (errorDeleting) ->
+            if errorDeleting?
+                logger.error "No subscriber #{req.subscriber.id} or not subscribed to #{req.event.name}"
+
+            # TODO: add the check for empty events and the requisite event.delete() call here.
+
+            res.send if errorDeleting then 404 else 204
 
     # Event stats
     app.get '/event/:event_id', authorize('register'), (req, res) ->
@@ -171,3 +172,10 @@ exports.setupRestApi = (app, createSubscriber, getEventFromId, authorize, testSu
                 res.send 204
             else
                 res.send 404
+
+    # Server status
+    app.get '/status', authorize('register'), (req, res) ->
+        if checkStatus()
+            res.send 204
+        else
+            res.send 503

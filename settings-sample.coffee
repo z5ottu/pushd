@@ -3,6 +3,8 @@ exports.server =
     redis_host: 'localhost'
     # redis_socket: '/var/run/redis/redis.sock'
     # redis_auth: 'password'
+    # redis_db_number: 2
+    # listen_ip: '10.0.1.2'
     tcp_port: 80
     udp_port: 80
     access_log: yes
@@ -56,10 +58,21 @@ exports['apns'] =
 #     # category: 'show'
 #     # contentAvailable: true
 
+exports["wns-toast"] =
+    enabled: yes
+    client_id: 'ms-app://SID-from-developer-console'
+    client_secret: 'client-secret-from-developer-console'
+    class: require('./lib/pushservices/wns').PushServiceWNS
+    type: 'toast'
+    # Any parameters used here must be present in each push event.
+    launchTemplate: '/Page.xaml?foo=${data.foo}'
+
 exports['gcm'] =
     enabled: yes
     class: require('./lib/pushservices/gcm').PushServiceGCM
     key: 'GCM API KEY HERE'
+    #options:
+       #proxy: 'PROXY SERVER HERE'
 
 # # Legacy Android Push Service
 # exports['c2dm'] =
@@ -109,7 +122,7 @@ exports['mpns-raw'] =
     type: 'raw'
 
 # Transports: Console, File, Http
-# 
+#
 # Common options:
 # level:
 #   error: log errors only

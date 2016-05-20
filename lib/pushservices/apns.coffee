@@ -7,8 +7,8 @@ class PushServiceAPNS
             return token.toLowerCase()
 
     constructor: (conf, @logger, tokenResolver) ->
-        conf.errorCallback = (errCode, note, device) =>
-            @logger?.error("APNS Error #{errCode} for subscriber #{device?.subscriberId}")
+        conf.errorCallback = (errCode, note) =>
+            @logger?.error("APNS Error #{errCode}: #{note}")
 
         # The APN library decided to change the default version of those variables in 1.5.1
         # Maintain the previous defaults in order not to break backward compat.
@@ -40,7 +40,7 @@ class PushServiceAPNS
             if subOptions?.ignore_message isnt true and alert = payload.localizedMessage(info.lang)
                 note.alert = alert
 
-            badge = parseInt(info.badge)
+            badge = parseInt(payload.badge || info.badge)
             if payload.incrementBadge
                 badge += 1
             

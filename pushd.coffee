@@ -16,6 +16,10 @@ if settings.server.redis_socket?
     redis = require('redis').createClient(settings.server.redis_socket)
 else if settings.server.redis_port? or settings.server.redis_host?
     redis = require('redis').createClient(settings.server.redis_port, settings.server.redis_host)
+else
+    redis = require('redis').createClient()
+if settings.server.redis_db_number?
+    redis.select(settings.server.redis_db_number)
 
 if settings.logging?
     logger.remove(logger.transports.Console)
@@ -84,6 +88,9 @@ getEventFromId = (id) ->
 testSubscriber = (subscriber) ->
     pushServices.push(subscriber, null, new Payload({msg: "Test", "data.test": "ok"}))
 
+checkStatus = () ->
+    return redis.connected
+
 app.param 'event_id', (req, res, next, id) ->
     try
         req.event = getEventFromId(req.params.event_id)
@@ -123,14 +130,18 @@ authorize = (realm) ->
     else
         return (req, res, next) -> next()
 
-require('./lib/api').setupRestApi(app, createSubscriber, getEventFromId, authorize, testSubscriber, eventPublisher)
+require('./lib/api').setupRestApi(app, createSubscriber, getEventFromId, authorize, testSubscriber, eventPublisher, checkStatus)
 if eventSourceEnabled
     require('./lib/eventsource').setup(app, authorize, eventPublisher)
 
 port = settings?.server?.tcp_port ? 80
-app.listen port
-logger.info "Listening on tcp port #{port}"
-
+listen_ip = settings?.server?.listen_ip
+if listen_ip
+    app.listen port, listen_ip
+    logger.info "Listening on ip address #{listen_ip} and tcp port #{port}"
+else
+    app.listen port
+    logger.info "Listening on tcp port #{port}"
 
 # UDP Event API
 udpApi = dgram.createSocket("udp4")
